@@ -1,0 +1,52 @@
+name: Build PEGUEDEX APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git zip unzip openjdk-17-jdk \
+            python3 python3-pip python3-setuptools python3-wheel \
+            build-essential libffi-dev libssl-dev \
+            libgl1-mesa-dev libgles2-mesa-dev pkg-config
+
+      - name: Install buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install cython buildozer
+
+      - name: Install Android SDK & NDK
+        run: |
+          mkdir -p $HOME/.buildozer/android/platform
+          cd $HOME/.buildozer/android/platform
+
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools-linux-9477386_latest.zip -d cmdline-tools
+
+          mkdir -p $HOME/.android
+          yes | cmdline-tools/bin/sdkmanager --licenses
+
+          cmdline-tools/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+
+      - name: Build APK
+        env:
+          ANDROIDSDK: $HOME/.buildozer/android/platform
+          ANDROIDNDK: $HOME/.buildozer/android/platform/ndk/25.2.9519653
+        run: |
+          buildozer android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PEGUEDEX_APK
+          path: bin/*.apk
